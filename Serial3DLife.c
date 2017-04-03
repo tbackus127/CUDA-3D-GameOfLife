@@ -6,6 +6,7 @@
 
 #define GOL_OPTION_DEATH_THRESHOLD_LOW 2
 #define GOL_OPTION_DEATH_THRESHOLD_HIGH 5
+#define GOL_IO_FILENAME "gol3DOutput.dat"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -25,14 +26,14 @@ char ***createGrid(unsigned const int x, unsigned const int y, unsigned const in
     return NULL;
   }
   int i;
-  for(i = 0; i < y; i++) {
+  for(i = 0; i < x; i++) {
     result[i] = malloc(y * sizeof(char *));
     if(result[i] == NULL) {
       printf("Out of memory.\n");
       return NULL;
     }
     int j;
-    for(j = 0; j < z; j++) {
+    for(j = 0; j < y; j++) {
       result[i][j] = malloc(z * sizeof(char));
       if(result[i][j] == NULL) {
         printf("Out of memory.\n");
@@ -48,7 +49,7 @@ char ***createGrid(unsigned const int x, unsigned const int y, unsigned const in
     for(j = 0; j < y; j++) {
       int k;
       for(k = 0; k < z; k++) {
-        result[i][j][k] = rand() & 1;
+        result[i][j][k] = (char)(rand() & 1);
       }
     }
   }
@@ -76,6 +77,68 @@ void print3DArray(char*** arr, unsigned const int x, unsigned const int y, unsig
 }
 
 // ------------------------------------------------------------------------------------------------
+// Initializes the game data file.
+// Line 1: <iteration count> <x-size> <y-size> <z-size>
+// Line 2: Blank
+// ------------------------------------------------------------------------------------------------
+void initGameFile(const unsigned int itrs, const unsigned int x, const unsigned int y,
+                  const unsigned int z) {
+  FILE *fp;
+  fp = fopen(GOL_IO_FILENAME, "w+");
+  fprintf(fp, "%d %d %d %d\n\n", itrs, x, y, z);
+  fclose(fp);
+}
+
+// ------------------------------------------------------------------------------------------------
+// Writes a game to a file for visualization within Java.
+// For every iteration, a block of text is created of the format:
+//   "<x-coord>:<z-coords for y=0>, <z-coords for y=1>, ..."
+//   Z-coords are represented by a 0 or 1 for each z-coordinate
+// Example: Game with 5 iterations, x=3, y=7, z=4
+//   5 3 7 4
+//   
+//   0:0000,0000,0000,0000,0000,0000,0000
+//   1:0000,0000,0000,0100,0000,0000,0001
+//   2:0000,0000,0010,0100,0001,0011,0000
+//   0:0000,0000,0000,0000,0000,0000,0000
+//   1:0000,0000,0000,0100,0000,0000,0001
+//   2:0000,0000,0010,0100,0001,0011,0000
+//   0:0000,0000,0000,0000,0000,0000,0000
+//   1:0000,0000,0000,0100,0000,0000,0001
+//   2:0000,0000,0010,0100,0001,0011,0000
+//   0:0000,0000,0000,0000,0000,0000,0000
+//   1:0000,0000,0000,0100,0000,0000,0001
+//   2:0000,0000,0010,0100,0001,0011,0000
+//   0:0000,0000,0000,0000,0000,0000,0000
+//   1:0000,0000,0000,0100,0000,0000,0001
+//   2:0000,0000,0010,0100,0001,0011,0000
+// 
+// ------------------------------------------------------------------------------------------------
+void writeGameStep(char*** arr, unsigned const int x, unsigned const int y, unsigned const int z) {
+  FILE *fp;
+  fp = fopen(GOL_IO_FILENAME, "a");
+  
+  int i;
+  for(i = 0; i < x; i++) {
+    fprintf(fp, "%d:", i);
+    int j;
+    for(j = 0; j < y; j++) {
+      
+      if(j > 0) {
+        fprintf(fp, ",");
+      }
+      // Print Z-Dim values
+      int k;
+      for(k = 0; k < z; k++) {
+        fprintf(fp, "%d", arr[i][j][k]);
+      }
+    }
+    fprintf(fp, "\n");
+  }
+  fclose(fp);
+}
+
+// ------------------------------------------------------------------------------------------------
 // Frees a 3D array.
 // ------------------------------------------------------------------------------------------------
 void free3DArray(char*** arr, const unsigned int x, const unsigned int y) {
@@ -100,13 +163,25 @@ char sumNeighbors(char*** arr, const unsigned int cx, const unsigned int cy, con
 
   int i;
   for(i = cx - 1; i <= cx + 1; i++) {
+    
+    // Ensure bounds
+    if(i < 0 || i >= xsize) {
+      continue;
+    }
+    
     int j;
     for(j = cy - 1; j <= cy + 1; j++) {
+      
+      // Ensure bounds
+      if(j < 0 || j >= ysize) {
+        continue;
+      }
+      
       int k;
       for(k = cz - 1; k <= cz + 1; k++) {
         
-        // Ignore edge conditions for now
-        if(i < 0 || j < 0 || k < 0 || i >= xsize || j >= ysize || k >= zsize) {
+        // Ensure bounds
+        if(k < 0 || k >= zsize) {
           continue;
         }
         
@@ -124,13 +199,19 @@ char sumNeighbors(char*** arr, const unsigned int cx, const unsigned int cy, con
 // ------------------------------------------------------------------------------------------------
 // Runs the Game of Life.
 // ------------------------------------------------------------------------------------------------
-void runLife(const int iterations, unsigned const int xsize, unsigned const int ysize, 
-             unsigned const int zsize) {
+void runLife(const unsigned int iterations, const unsigned int xsize, const unsigned int ysize, 
+             const unsigned int zsize) {
   
+  printf("Creating grid...");
   char ***grid = createGrid(xsize, ysize, zsize);
   if(grid == NULL) {
+    printf("Grid is null!");
+    free3DArray(grid, xsize, ysize);
     return;
   }
+  
+  printf(" DONE\n");
+  initGameFile(iterations, xsize, ysize, zsize);
   
   int itrNum;
   for(itrNum = 0; itrNum < iterations; ++itrNum) {
@@ -153,7 +234,10 @@ void runLife(const int iterations, unsigned const int xsize, unsigned const int 
       }
     }
     
-    print3DArray(grid, xsize, ysize, zsize);
+    // print3DArray(grid, xsize, ysize, zsize);
+    // WARNING: The file can get pretty big for large game areas (260MB for 1000itr 64x64x64).
+    // I will try to find a way to compact it later, but it is low priority as of now.
+    writeGameStep(grid, xsize, ysize, zsize);
   }
   
   free3DArray(grid, xsize, ysize);
@@ -174,6 +258,7 @@ int main(int argc, char *argv[]) {
   // Ensure proper runtime argument count
   if(argc <= 1 || argc > 5) {
     printUsage();
+    return EXIT_SUCCESS;
   }
   
   // Parse iteration count
@@ -192,5 +277,5 @@ int main(int argc, char *argv[]) {
          sizeX, sizeY, sizeZ);
   runLife(iterations, sizeX, sizeY, sizeZ);
   
-  return 0;
+  return EXIT_SUCCESS;
 }
