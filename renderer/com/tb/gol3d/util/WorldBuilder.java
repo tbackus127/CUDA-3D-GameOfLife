@@ -40,6 +40,8 @@ public class WorldBuilder {
    */
   private static final byte[][][][] buildWorld(final Scanner fileScan) {
     
+    System.out.println("Building world...");
+    
     // Get metadata of game
     int iterations = 0;
     int xsize = 0;
@@ -55,6 +57,7 @@ public class WorldBuilder {
     // For all iterations in this game
     final byte[][][][] result = new byte[iterations][xsize][ysize][zsize];
     for (int itr = 0; itr < iterations; itr++) {
+      System.out.println("Building for iteration " + itr);
       
       // Parse <xsize> lines
       for (int xIndex = 0; xIndex < xsize && fileScan.hasNextLine(); xIndex++) {
@@ -62,26 +65,27 @@ public class WorldBuilder {
         final String line = fileScan.nextLine();
         
         // Ensure we're not on the wrong X-Block
-        final int xBlockNumber = line.charAt(0) - '0';
+        final int xBlockNumber = Integer.parseInt(line.split(":")[0]);
         if (xBlockNumber != xIndex) {
           System.err.println("X-Block ID mismatch! Expected: " + xIndex + ", got " + xBlockNumber + ".");
           return null;
         }
         
         // Split Y-Block and parse
-        final String[] yBlockString = line.substring(2, line.length()).split(",");
+        final String[] yBlockString = line.substring(line.indexOf(':') + 1, line.length()).split(",");
         for (int yIndex = 0; yIndex < ysize; yIndex++) {
           
           // Ensure correct Y-Block size
           if (yIndex >= yBlockString.length) {
-            System.err.println("Y-Block length mismatch!");
+            System.err.println("Y-Block length mismatch! Expected " + yIndex + ", got " + yBlockString.length + ".");
             return null;
           }
           
           // Ensure correct Z-Block size
           final String zBlock = yBlockString[yIndex];
           if (zsize != zBlock.length()) {
-            System.err.println("Z-Block length mismatch!");
+            System.err.println("Z-Block length mismatch! Expected " + zsize + ", got " + zBlock.length() + ".");
+            System.err.println(zBlock);
             return null;
           }
           

@@ -2,7 +2,6 @@
 package com.tb.gol3d;
 
 import java.io.FileNotFoundException;
-import java.util.Arrays;
 
 import com.tb.gol3d.util.WorldBuilder;
 
@@ -12,7 +11,6 @@ import com.tb.gol3d.util.WorldBuilder;
  * @author Tim Backus tbackus127@gmail.com
  *
  */
-@SuppressWarnings("unused")
 public class Main {
   
   /**
@@ -22,9 +20,8 @@ public class Main {
    */
   public static void main(String[] args) {
     
+    byte[][][][] data = null;
     if (args.length > 0) {
-      // Initialize game data
-      byte[][][][] data = null;
       
       // Build the world from the passed file
       try {
@@ -32,13 +29,18 @@ public class Main {
       } catch (FileNotFoundException e) {
         e.printStackTrace();
       }
+    } else {
+      System.out.println("Usage: java Main <3d_life_data_file.dat");
     }
     
-    // Print out the array to verify it works correctly
-    // System.out.println(Arrays.deepToString(data));
+    // In case we returned null for some reason, abort
+    if (data == null) {
+      System.err.println("Game data not initialized! Aborting.");
+      return;
+    }
     
     // Initialize the blank LWJGL window
-    final Game g = new Game();
+    final Game g = new Game(data);
     g.run();
   }
 }
