@@ -4,8 +4,8 @@ This program will create and render a three-dimensional version of Conway's Game
 
 ### How to Use
 
-!! Warning !! 
-This program will create a potentially large data file (5MB for 20 iterations of 64x64x64, for an example) in the local directory. Be careful running it with large argument values!
+**!! Warning !!
+This program will create a potentially large data file (5MB for 20 iterations of 64x64x64, for an example) in the local directory. Be careful running it with large argument values!**
 
 1. Compile Serial3DLife.c.
 2. Run with the following arguments: NUMBER_OF_ITERATIONS X_SIZE Y_SIZE Z_SIZE.
