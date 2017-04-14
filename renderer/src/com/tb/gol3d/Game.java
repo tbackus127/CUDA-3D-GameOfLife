@@ -199,6 +199,10 @@ public class Game implements Runnable {
     glClearColor(0.2f, 0.2f, 0.2f, 0.2f);
     
     // Run until the user closes the window
+    
+    float rotAmt = 0.4f;
+    boolean rotPos = true;
+    
     while (!glfwWindowShouldClose(window)) {
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -209,7 +213,16 @@ public class Game implements Runnable {
       // Do cube rotation
       glRotatef(0.37f, 1.0f, 0.0f, 0.0f);
       glRotatef(0.17f, 0.0f, 1.0f, 0.0f);
-      glRotatef(0.23f, 0.0f, 0.0f, 1.0f);
+      glRotatef(0.23f * rotAmt, 0.0f, 0.0f, 1.0f);
+      
+      // Add rotation variance
+      if(rotPos) {
+        rotAmt += 0.004f;
+      } else {
+        rotAmt -= 0.004f;
+      }
+      if(rotAmt > 3.0f) rotPos = false;
+      else if(rotAmt < -3.0f) rotPos = true;
       
       glfwSwapBuffers(window);
       glfwPollEvents();
