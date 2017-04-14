@@ -8,7 +8,7 @@ This program will create and render a three-dimensional version of Conway's Game
 This program will create a potentially large data file (5MB for 20 iterations of 64x64x64, for an example) in the local directory. Be careful running it with large argument values!**
 
 1. Compile Serial3DLife.c.
-2. Run with the following arguments: NUMBER_OF_ITERATIONS X_SIZE Y_SIZE Z_SIZE.
+2. Run with the following arguments: NUMBER_OF_ITERATIONS X_SIZE Y_SIZE Z_SIZE INITIAL_ALIVE_CHANCE NUM_NEIGHBORS_ALIVE_THRESH_LOW NUM_NEIGHBORS_ALIVE_THRESH_HIGH
 3. Compile the visualizer with Java, linking the lwjgl libraries when compiling.
 4. Run the visualizer with the path to the data file as its runtime argument.
 5. Once the LWJGL window has started to render, use the left and right arrow keys to control the iteration number.
