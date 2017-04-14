@@ -301,7 +301,8 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
 // Prints the usage message if a bad number of runtime arguments are passed.
 // ------------------------------------------------------------------------------------------------
 void printUsage() {
-  printf("Usage: <program> MAX_ITERATIONS, SIZE_X, SIZE_Y, SIZE_Z\n");
+  printf("Usage: <program> MAX_ITERATIONS, SIZE_X, SIZE_Y, SIZE_Z,\nINITIAL_ALIVE_CHANCE, ");
+  printf("  ALIVE_THRESHOLD_LOW (inclusive), ALIVE_THRESHOLD_HIGH (inclusive)");
 }
 
 // ------------------------------------------------------------------------------------------------
