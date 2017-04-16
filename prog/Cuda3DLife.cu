@@ -13,6 +13,9 @@
 #include <time.h>
 #include <stdlib.h>
 
+// ------------------------------------------------------------------------------------------------
+// CUDA kernel (Gather) - Adds up the number of neighbors for a cell in a 3x3x3 cube.
+// ------------------------------------------------------------------------------------------------
 __global__
 void sumNeighborsKernel(const char* const d_in, char* d_out, const unsigned int xs,
                         const unsigned int ys, const unsigned int zs) {
@@ -24,19 +27,83 @@ void sumNeighborsKernel(const char* const d_in, char* d_out, const unsigned int 
   const int stepX = xs * ys;
   const int arrayPos = threadPosX * stepX + threadPosY * ys + threadPosZ;
   
+  // Ensure thread bounds
+  if(threadPosX > xs - 1) return;
+  if(threadPosY > ys - 1) return;
+  if(threadPosZ > zs - 1) return;
+  
+  // X-Axis neighbors
   unsigned char sum = 0;
-  int i;
+  int i, realx;
   for(i = arrayPos - stepX; i <= arrayPos + stepX; i += stepX) {
-    int j;
+    
+    // Wrap X-Axis
+    realx = i;
+    if(i > xs) {
+      realx = threadPosY * ys + threadPosZ;
+    } else if(i < 0) {
+      realx = (xs - 1) * stepX + threadPosY * ys + threadPosZ;
+    }
+    
+    // Y-Axis neighbors
+    int j, realy;
     for(j = arrayPos - ys; j <= arrayPos + ys; j += ys) {
-      int k;
+      
+      // Wrap Y-Axis
+      realy = j;
+      if(j > ys) {
+        realy = threadPosZ;
+      } else if(j < 0) {
+        realy = (ys - 1) * ys + threadPosZ;
+      }
+      
+      // Z-Axis neighbors
+      int k, realz;
       for(k = arrayPos - 1; k <= arrayPos + 1; k++) {
-        sum += d_in[arrayPos];
+        
+        // Wrap Z-Axis
+        realz = k;
+        if(k > zs) {
+          realz = 0;
+        } else if(k < 0) {
+          realz = zs - 1;
+        }
+        
+        sum += d_in[realx * stepX + realy * ys + realz];
       }
     }
   }
   
   d_out[arrayPos] = sum;
+}
+
+// ------------------------------------------------------------------------------------------------
+// CUDA kernel (Map) - Sets each cell to alive or dead depending on its number of neighbors and
+//   the rules for this current game.
+// ------------------------------------------------------------------------------------------------
+__global__
+void setAliveDeadKernel(const char* const d_nei, char* d_out, const unsigned int xs, 
+                        const unsigned int ys, const unsigned int zs, const unsigned int alow, 
+                        const unsigned int ahigh) {
+  
+  // Calculate block and thread IDs
+  const int threadPosX = blockIdx.x * blockDim.x + threadIdx.x;
+  const int threadPosY = blockIdx.y * blockDim.y + threadIdx.y;
+  const int threadPosZ = blockIdx.z * blockDim.z + threadIdx.z;
+  const int stepX = xs * ys;
+  const int arrayPos = threadPosX * stepX + threadPosY * ys + threadPosZ;
+  
+  // Ensure thread bounds
+  if(threadPosX > xs - 1) return;
+  if(threadPosY > ys - 1) return;
+  if(threadPosZ > zs - 1) return;
+  
+  // Set the cell alive or dead as according to the rules
+  if (d_nei[arrayPos] < alow || d_nei[arrayPos] > ahigh) {
+    d_out[arrayPos] = 0;
+  } else if (d_nei[arrayPos] >= alow && d_nei[arrayPos] <= ahigh) {
+    d_out[arrayPos] = 1;
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -67,24 +134,28 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
              const unsigned int zsize, const unsigned int initc, const unsigned int alow,
              const unsigned int ahigh, const unsigned int outputToFile) {
   
+  // Memory values
   const int arrSize = xsize * ysize * zsize;
   const int arrMem = arrSize * sizeof(char);
   
-  // GPU grid dimensions GOL_CUDA_THREADS_PER_BLOCK
-  const int gx = xsize / GOL_CUDA_THREADS_PER_BLOCK;
-  const int gy = ysize / GOL_CUDA_THREADS_PER_BLOCK;
-  const int gz = zsize / GOL_CUDA_THREADS_PER_BLOCK;
-  dim3 grid(gx, gy, gz);
+  // GPU grid dimensions
+  const int gx = (int) ceil(xsize / GOL_CUDA_THREADS_PER_BLOCK);
+  const int gy = (int) ceil(ysize / GOL_CUDA_THREADS_PER_BLOCK);
+  const int gz = (int) ceil(zsize / GOL_CUDA_THREADS_PER_BLOCK);
+  dim3 gridDim(gx, gy, gz);
   
   // GPU thread dimensions
-  const int tx = GOL_CUDA_THREADS_PER_BLOCK;
-  const int ty = GOL_CUDA_THREADS_PER_BLOCK;
-  const int tz = GOL_CUDA_THREADS_PER_BLOCK;
-  dim3 block(tx, ty, tz);
+  const int tx = (xsize >= GOL_CUDA_THREADS_PER_BLOCK) ? GOL_CUDA_THREADS_PER_BLOCK : xsize;
+  const int ty = (ysize >= GOL_CUDA_THREADS_PER_BLOCK) ? GOL_CUDA_THREADS_PER_BLOCK : ysize;
+  const int tz = (zsize >= GOL_CUDA_THREADS_PER_BLOCK) ? GOL_CUDA_THREADS_PER_BLOCK : zsize;
+  dim3 blockDim(tx, ty, tz);
   
   // Initialize game space
   char *h_in = (char *) malloc(arrMem);
   randomizeGrid(h_in, arrSize, initc);
+  
+  // Number of neighbors
+  char *h_nei = (char *) malloc(arrMem);
 
   // Allocate X-Size on GPU
   int d_xs;
@@ -101,6 +172,16 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
   cudaMalloc((void **) &d_zs, sizeof(int));
   cudaMemcpy(&d_zs, &zsize, sizeof(int), cudaMemcpyHostToDevice);
   
+  // Allocate neighbor count for alive low threshold on GPU
+  int d_lw;
+  cudaMalloc((void **) &d_lw, sizeof(int));
+  cudaMemcpy(&d_lw, &alow, sizeof(int), cudaMemcpyHostToDevice);
+  
+  // Allocate neighbor count for alive low threshold on GPU
+  int d_hg;
+  cudaMalloc((void **) &d_hg, sizeof(int));
+  cudaMemcpy(&d_hg, &ahigh, sizeof(int), cudaMemcpyHostToDevice);
+  
   // Pointers for GPU game data
   char *d_in;
   char *d_out;
@@ -111,15 +192,20 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
   // Allocate output array on GPU
   cudaMalloc(&d_out, arrMem);
   
+  // Do Game of Life iterations
   int itrNum;
   for(itrNum = 0; itrNum < iterations; itrNum++) {
     
-    cudaMemcpy(d_in, h_in, arrMem, cudaMemcpyHostToDevice);
-    
     // Run the kernel to add neighbors of all cells
-    sumNeighborsKernel<<<grid, block>>>(d_in, d_out, d_xs, d_ys, d_zs);
+    cudaMemcpy(d_in, h_in, arrMem, cudaMemcpyHostToDevice);
+    sumNeighborsKernel<<<gridDim, blockDim>>>(d_in, d_out, d_xs, d_ys, d_zs);
+    cudaMemcpy(h_nei, d_out, arrMem, cudaMemcpyDeviceToHost);
     
+    // Run the kernel to set the cells' alive or dead states
+    cudaMemcpy(d_in, h_nei, arrMem, cudaMemcpyHostToDevice);
+    setAliveDeadKernel<<<gridDim, blockDim>>>(d_in, d_out, d_xs, d_ys, d_zs, d_lw, d_hg);
     cudaMemcpy(h_in, d_out, arrMem, cudaMemcpyDeviceToHost);
+    
   }
   
   // Free memory
@@ -128,6 +214,8 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
   cudaFree(&d_xs);
   cudaFree(&d_ys);
   cudaFree(&d_zs);
+  cudaFree(&d_lw);
+  cudaFree(&d_hg);
   free(h_in);
 }
 
