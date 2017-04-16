@@ -196,6 +196,10 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
   int itrNum;
   for(itrNum = 0; itrNum < iterations; itrNum++) {
     
+    printf("Iteration %d ", itrNum);
+    
+    clock_t start = clock();
+    
     // Run the kernel to add neighbors of all cells
     cudaMemcpy(d_in, h_in, arrMem, cudaMemcpyHostToDevice);
     sumNeighborsKernel<<<gridDim, blockDim>>>(d_in, d_out, d_xs, d_ys, d_zs);
@@ -206,6 +210,9 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
     setAliveDeadKernel<<<gridDim, blockDim>>>(d_in, d_out, d_xs, d_ys, d_zs, d_lw, d_hg);
     cudaMemcpy(h_in, d_out, arrMem, cudaMemcpyDeviceToHost);
     
+    clock_t end = clock();
+    
+    printf("took %d ticks.\n", (end - start));
   }
   
   // Free memory

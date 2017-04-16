@@ -250,11 +250,13 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
   randomizeGrid(grid, xsize, ysize, zsize, initc);
   
   printf("DONE\n");
-  initGameFile(iterations, xsize, ysize, zsize);
+  // initGameFile(iterations, xsize, ysize, zsize);
   
   int itrNum;
   for(itrNum = 0; itrNum < iterations; ++itrNum) {
-    printf(">> Iteration %d\n", itrNum);
+    printf("Iteration %d ", itrNum);
+    
+    clock_t start = clock();
     
     char ***tempGrid = createGrid(xsize, ysize, zsize);
     // printf("  Created temporary grid\n");
@@ -279,6 +281,10 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
       }
     }
     
+    clock_t end = clock();
+    
+    printf(" took %d ticks.\n", (end - start));
+    
     // DEBUG
     // printf("\nTemp array:\n");
     // print3DArray(tempGrid, xsize, ysize, zsize);
@@ -291,7 +297,7 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
     // print3DArray(grid, xsize, ysize, zsize);
     // WARNING: The file can get pretty big for large game areas (260MB for 1000itr 64x64x64).
     // I will try to find a way to compact it later, but it is low priority as of now.
-    writeGameStep(grid, xsize, ysize, zsize);
+    // writeGameStep(grid, xsize, ysize, zsize);
   }
   
   free3DArray(grid, xsize, ysize);
