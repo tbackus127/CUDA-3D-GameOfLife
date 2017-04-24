@@ -17,59 +17,54 @@
 // CUDA kernel (Gather) - Adds up the number of neighbors for a cell in a 3x3x3 cube.
 // ------------------------------------------------------------------------------------------------
 __global__
-void sumNeighborsKernel(const char* const d_in, char* d_out, const unsigned int xs,
-                        const unsigned int ys, const unsigned int zs) {
+void sumNeighborsKernel(const char* const d_in, char* d_out, const unsigned int xsize,
+                        const unsigned int ysize, const unsigned int zsize) {
   
   // Calculate block and thread IDs
-  const int threadPosX = blockIdx.x * blockDim.x + threadIdx.x;
-  const int threadPosY = blockIdx.y * blockDim.y + threadIdx.y;
-  const int threadPosZ = blockIdx.z * blockDim.z + threadIdx.z;
-  const int stepX = xs * ys;
-  const int arrayPos = threadPosX * stepX + threadPosY * ys + threadPosZ;
+  // const int threadPosX = blockIdx.x * blockDim.x + threadIdx.x;
+  // const int threadPosY = blockIdx.y * blockDim.y + threadIdx.y;
+  // const int threadPosZ = blockIdx.z * blockDim.z + threadIdx.z;
+  const unsigned int threadPosX = blockIdx.x;
+  const unsigned int threadPosY = blockIdx.y;
+  const unsigned int threadPosZ = blockIdx.z;
+  const unsigned int stepX = ysize * zsize;
+  const unsigned int arrayPos = threadPosX * stepX + threadPosY * zsize + threadPosZ;
   
   // Ensure thread bounds
-  if(threadPosX > xs - 1) return;
-  if(threadPosY > ys - 1) return;
-  if(threadPosZ > zs - 1) return;
+  if(threadPosX > xsize - 1) return;
+  if(threadPosY > ysize - 1) return;
+  if(threadPosZ > zsize - 1) return;
+  
+  char sum = 0;
   
   // X-Axis neighbors
-  unsigned char sum = 0;
-  int i, realx;
-  for(i = arrayPos - stepX; i <= arrayPos + stepX; i += stepX) {
+  int xc, xcoord;
+  for(xc = threadPosX - 1; xc <= threadPosX + 1; xc++) {
     
     // Wrap X-Axis
-    realx = i;
-    if(i > xs) {
-      realx = threadPosY * ys + threadPosZ;
-    } else if(i < 0) {
-      realx = (xs - 1) * stepX + threadPosY * ys + threadPosZ;
-    }
+    xcoord = xc;
+    if(xc < 0) xcoord = xsize;
+    else if(xc >= xsize) xcoord = 0;
     
     // Y-Axis neighbors
-    int j, realy;
-    for(j = arrayPos - ys; j <= arrayPos + ys; j += ys) {
+    int yc, ycoord;
+    for(yc = threadPosY - 1; yc <= threadPosY + 1; yc++) {
       
       // Wrap Y-Axis
-      realy = j;
-      if(j > ys) {
-        realy = threadPosZ;
-      } else if(j < 0) {
-        realy = (ys - 1) * ys + threadPosZ;
-      }
+      ycoord = yc;
+      if(yc < 0) ycoord = ysize;
+      else if(yc >= ysize) ycoord = 0;
       
       // Z-Axis neighbors
-      int k, realz;
-      for(k = arrayPos - 1; k <= arrayPos + 1; k++) {
+      int zc, zcoord;
+      for(zc = threadPosZ - 1; zc <= threadPosZ + 1; zc++) {
         
         // Wrap Z-Axis
-        realz = k;
-        if(k > zs) {
-          realz = 0;
-        } else if(k < 0) {
-          realz = zs - 1;
-        }
+        zcoord = zc;
+        if(zc < 0) zcoord = zsize;
+        else if(zc >= zsize) zcoord = 0;
         
-        sum += d_in[realx * stepX + realy * ys + realz];
+        sum += d_in[xcoord * stepX + ycoord * zsize + zcoord];
       }
     }
   }
@@ -90,8 +85,8 @@ void setAliveDeadKernel(const char* const d_nei, char* d_out, const unsigned int
   const int threadPosX = blockIdx.x * blockDim.x + threadIdx.x;
   const int threadPosY = blockIdx.y * blockDim.y + threadIdx.y;
   const int threadPosZ = blockIdx.z * blockDim.z + threadIdx.z;
-  const int stepX = xs * ys;
-  const int arrayPos = threadPosX * stepX + threadPosY * ys + threadPosZ;
+  const int stepX = ys * zs;
+  const int arrayPos = threadPosX * stepX + threadPosY * zs + threadPosZ;
   
   // Ensure thread bounds
   if(threadPosX > xs - 1) return;
@@ -110,8 +105,27 @@ void setAliveDeadKernel(const char* const d_nei, char* d_out, const unsigned int
 // Returns the 1D position of a simulated 3D array
 // ------------------------------------------------------------------------------------------------
 int getArrIndex(const unsigned int xp, const unsigned int yp, const unsigned int zp,
-                const unsigned int xs, const unsigned int ys) {
-  return xp * xs * ys + ys * yp + zp;
+                const unsigned int ys, const unsigned int zs) {
+  return xp * ys * zs + yp * zs + zp;
+}
+
+// ------------------------------------------------------------------------------------------------
+// Prints a 3D array.
+// ------------------------------------------------------------------------------------------------
+void print3DArray(char* arr, unsigned const int x, unsigned const int y, unsigned const int z) {
+  int i;
+  for(i = 0; i < x; ++i) {
+    printf("Dimension %d:\n", i);
+    int j;
+    for(j = 0; j < y; ++j) {
+      int k;
+      for(k = 0; k < z; ++k) {
+        printf("%d ", (char)arr[getArrIndex(i, j, k, y, z)]);
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -119,7 +133,8 @@ int getArrIndex(const unsigned int xp, const unsigned int yp, const unsigned int
 // ------------------------------------------------------------------------------------------------
 void randomizeGrid(char* grid, unsigned const int size, unsigned const int chance) {
  
-  srand(time(NULL));
+  // srand(time(NULL));
+  srand(8675309);
   int i;
   for(i = 0; i < size; i++) {
     grid[i] = (char)((rand() % 100 <= chance) ? 1 : 0);
@@ -130,7 +145,7 @@ void randomizeGrid(char* grid, unsigned const int size, unsigned const int chanc
 // ------------------------------------------------------------------------------------------------
 // Runs the Game of Life.
 // ------------------------------------------------------------------------------------------------
-void runLife(const unsigned int iterations, const unsigned int xsize, const unsigned int ysize, 
+void runLife(const unsigned int iterations, unsigned int xsize, const unsigned int ysize, 
              const unsigned int zsize, const unsigned int initc, const unsigned int alow,
              const unsigned int ahigh, const unsigned int outputToFile) {
   
@@ -142,45 +157,48 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
   const int gx = (int) ceil(xsize / GOL_CUDA_THREADS_PER_BLOCK);
   const int gy = (int) ceil(ysize / GOL_CUDA_THREADS_PER_BLOCK);
   const int gz = (int) ceil(zsize / GOL_CUDA_THREADS_PER_BLOCK);
-  dim3 gridDim(gx, gy, gz);
+  // dim3 gridDim(gx, gy, gz);
+  dim3 gridDim(xsize, ysize, zsize);
   
   // GPU thread dimensions
-  const int tx = (xsize >= GOL_CUDA_THREADS_PER_BLOCK) ? GOL_CUDA_THREADS_PER_BLOCK : xsize;
-  const int ty = (ysize >= GOL_CUDA_THREADS_PER_BLOCK) ? GOL_CUDA_THREADS_PER_BLOCK : ysize;
-  const int tz = (zsize >= GOL_CUDA_THREADS_PER_BLOCK) ? GOL_CUDA_THREADS_PER_BLOCK : zsize;
-  dim3 blockDim(tx, ty, tz);
+  // const int tx = (xsize >= GOL_CUDA_THREADS_PER_BLOCK) ? GOL_CUDA_THREADS_PER_BLOCK : xsize;
+  // const int ty = (ysize >= GOL_CUDA_THREADS_PER_BLOCK) ? GOL_CUDA_THREADS_PER_BLOCK : ysize;
+  // const int tz = (zsize >= GOL_CUDA_THREADS_PER_BLOCK) ? GOL_CUDA_THREADS_PER_BLOCK : zsize;
+  // dim3 blockDim(tx, ty, tz);
   
   // Initialize game space
   char *h_in = (char *) malloc(arrMem);
   randomizeGrid(h_in, arrSize, initc);
+  printf("Initial grid:\n");
+  print3DArray(h_in, xsize, ysize, zsize);
   
   // Number of neighbors
   char *h_nei = (char *) malloc(arrMem);
 
   // Allocate X-Size on GPU
-  int d_xs;
-  cudaMalloc((void **) &d_xs, sizeof(int));
-  cudaMemcpy(&d_xs, &xsize, sizeof(int), cudaMemcpyHostToDevice);
+  // unsigned int *d_xs;
+  // cudaMalloc((void **) &d_xs, sizeof(unsigned int));
+  // cudaMemcpy(d_xs, xsize, sizeof(unsigned int), cudaMemcpyHostToDevice);
   
   // Allocate Y-Size on GPU
-  int d_ys;
-  cudaMalloc((void **) &d_ys, sizeof(int));
-  cudaMemcpy(&d_ys, &ysize, sizeof(int), cudaMemcpyHostToDevice);
+  // unsigned int *d_ys;
+  // cudaMalloc((void **) &d_ys, sizeof(unsigned int));
+  // cudaMemcpy(d_ys, ysize, sizeof(unsigned int), cudaMemcpyHostToDevice);
   
   // Allocate Z-Size on GPU
-  int d_zs;
-  cudaMalloc((void **) &d_zs, sizeof(int));
-  cudaMemcpy(&d_zs, &zsize, sizeof(int), cudaMemcpyHostToDevice);
+  // unsigned int *d_zs;
+  // cudaMalloc((void **) &d_zs, sizeof(unsigned int));
+  // cudaMemcpy(d_zs, zsize, sizeof(unsigned int), cudaMemcpyHostToDevice);
   
   // Allocate neighbor count for alive low threshold on GPU
-  int d_lw;
-  cudaMalloc((void **) &d_lw, sizeof(int));
-  cudaMemcpy(&d_lw, &alow, sizeof(int), cudaMemcpyHostToDevice);
+  // unsigned int *d_lw;
+  // cudaMalloc((void **) &d_lw, sizeof(unsigned int));
+  // cudaMemcpy(d_lw, alow, sizeof(unsigned int), cudaMemcpyHostToDevice);
   
   // Allocate neighbor count for alive low threshold on GPU
-  int d_hg;
-  cudaMalloc((void **) &d_hg, sizeof(int));
-  cudaMemcpy(&d_hg, &ahigh, sizeof(int), cudaMemcpyHostToDevice);
+  // unsigned int *d_hg;
+  // cudaMalloc((void **) &d_hg, sizeof(unsigned int));
+  // cudaMemcpy(d_hg, ahigh, sizeof(unsigned int), cudaMemcpyHostToDevice);
   
   // Pointers for GPU game data
   char *d_in;
@@ -202,27 +220,32 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
     
     // Run the kernel to add neighbors of all cells
     cudaMemcpy(d_in, h_in, arrMem, cudaMemcpyHostToDevice);
-    sumNeighborsKernel<<<gridDim, blockDim>>>(d_in, d_out, d_xs, d_ys, d_zs);
+    sumNeighborsKernel<<<gridDim, 1>>>(d_in, d_out, xsize, ysize, zsize);
     cudaMemcpy(h_nei, d_out, arrMem, cudaMemcpyDeviceToHost);
+    
+    printf("Number of neighbors\n");
+    print3DArray(h_nei, xsize, ysize, zsize);
     
     // Run the kernel to set the cells' alive or dead states
     cudaMemcpy(d_in, h_nei, arrMem, cudaMemcpyHostToDevice);
-    setAliveDeadKernel<<<gridDim, blockDim>>>(d_in, d_out, d_xs, d_ys, d_zs, d_lw, d_hg);
+    setAliveDeadKernel<<<gridDim, 1>>>(d_in, d_out, xsize, ysize, zsize, alow, ahigh);
     cudaMemcpy(h_in, d_out, arrMem, cudaMemcpyDeviceToHost);
     
     clock_t end = clock();
     
     printf("took %d ticks.\n", (end - start));
+    
+    print3DArray(h_in, xsize, ysize, zsize);
   }
   
   // Free memory
   cudaFree(d_in);
   cudaFree(d_out);
-  cudaFree(&d_xs);
-  cudaFree(&d_ys);
-  cudaFree(&d_zs);
-  cudaFree(&d_lw);
-  cudaFree(&d_hg);
+  // cudaFree(&d_xs);
+  // cudaFree(&d_ys);
+  // cudaFree(&d_zs);
+  // cudaFree(&d_lw);
+  // cudaFree(&d_hg);
   free(h_in);
 }
 

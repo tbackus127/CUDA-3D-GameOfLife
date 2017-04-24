@@ -56,7 +56,8 @@ char ***createGrid(unsigned const int x, unsigned const int y, unsigned const in
 void randomizeGrid(char*** grid, unsigned const int xsize, unsigned const int ysize,
                    unsigned const int zsize, unsigned const int chance) {
  
-  srand(time(NULL));
+  // srand(time(NULL));
+  srand(8675309);
   
   int i;
   for(i = 0; i < xsize; i++) {
@@ -248,6 +249,8 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
   }
   
   randomizeGrid(grid, xsize, ysize, zsize, initc);
+  printf("Initial grid:\n");
+  print3DArray(grid, xsize, ysize, zsize);
   
   printf("DONE\n");
   // initGameFile(iterations, xsize, ysize, zsize);
@@ -287,7 +290,7 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
     
     // DEBUG
     // printf("\nTemp array:\n");
-    // print3DArray(tempGrid, xsize, ysize, zsize);
+    print3DArray(tempGrid, xsize, ysize, zsize);
     
     // Once calculations have been completed, copy the temp grid to the current and destroy it
     copy3DArray(tempGrid, grid, xsize, ysize, zsize);
