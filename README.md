@@ -4,8 +4,7 @@ This program will create and render a three-dimensional version of Conway's Game
 
 ## // TODO: auto-generated stub
 
-* Optimize parallelization (shared memory between threads in a block?).
-* Learn about warps and if using them is worth it for this project.
+* Optimize parallelization (shared memory between threads in a block? worth it?).
 * Compress game data file.
 * Make the renderer prettier.
 
