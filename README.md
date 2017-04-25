@@ -4,9 +4,7 @@ This program will create and render a three-dimensional version of Conway's Game
 
 ## // TODO: auto-generated stub
 
-* Set my system locale back to English so MSVC stops flooding the console with Unicode character warnings.
-* Verify CUDA version works correctly (test it against serial w/ set random seed)
-* Optimize parallelization (shared memory between threads in a block).
+* Optimize parallelization (shared memory between threads in a block?).
 * Learn about warps and if using them is worth it for this project.
 * Compress game data file.
 * Make the renderer prettier.
