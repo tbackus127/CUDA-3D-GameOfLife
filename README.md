@@ -15,13 +15,13 @@ This program will create and render a three-dimensional version of Conway's Game
 
 1. Compile Serial3DLife.c with a C compiler and Cuda3DLife.cu with nvcc.
 2. Run with the following arguments (separated by spaces): 
-  1. Number of iterations to run
-  2. X-Size
-  3. Y-Size
-  4. Z-Size
-  5. Initial chance (1 to 100) that a given cell will be alive at the start of the game
-  6. The lowest (inclusive) number of neighbors a cell needs to be alive
-  7. The highest (inclusive) number of neighbors a cell needs to be alive
+    1. Number of iterations to run
+    2. X-Size
+    3. Y-Size
+    4. Z-Size
+    5. Initial chance (1 to 100) that a given cell will be alive at the start of the game
+    6. The lowest (inclusive) number of neighbors a cell needs to be alive
+    7. The highest (inclusive) number of neighbors a cell needs to be alive
 3. Compile the visualizer with Java, linking the lwjgl libraries when compiling.
 4. Run the visualizer with the path to the data file as its runtime argument.
 5. Once the LWJGL window has started to render, use the left and right arrow keys to control the iteration number.
