@@ -31,12 +31,13 @@ void lifeItrKernel(const char* const d_in, char* d_out, const unsigned int xsize
   const int threadPosZ = blockIdx.z * blockDim.z + threadIdx.z;
   const unsigned int stepX = ysize * zsize;
   const unsigned int arrayPos = threadPosX * stepX + threadPosY * zsize + threadPosZ;
-  const unsigned int threadID = threadIdx.x * stepX + threadIdx.y * zsize + threadIdx.z;
+  const unsigned int threadID = threadIdx.x * blockDim.y * blockDim.z + 
+                                threadIdx.y * blockDim.z + threadIdx.z;
 
   // Ensure thread bounds
-  if(threadPosX > xsize - 1) return;
-  if(threadPosY > ysize - 1) return;
-  if(threadPosZ > zsize - 1) return;
+  if(threadPosX >= xsize) return;
+  if(threadPosY >= ysize) return;
+  if(threadPosZ >= zsize) return;
   
   // Copy global into shared memory
   shMem[threadID] = d_in[arrayPos];
@@ -76,11 +77,11 @@ void lifeItrKernel(const char* const d_in, char* d_out, const unsigned int xsize
         if(threadPosX != xcoord || threadPosY != ycoord || threadPosZ != zcoord) {
           
           // Use shared memory instead of global memory if the current coord is in the thread block
-          //   (is all of this overhead even worth it?)
-          if((xcoord >= blockDim.x * blockIdx.x && xcoord < (blockDim.x + 1) * blockIdx.x) &&
-             (ycoord >= blockDim.y * blockIdx.y && ycoord < (blockDim.y + 1) * blockIdx.y) &&
-             (zcoord >= blockDim.z * blockIdx.z && zcoord < (blockDim.z + 1) * blockIdx.z)) {
-            sum += shMem[threadID];
+          if((xcoord >= blockDim.x * blockIdx.x && xcoord < (blockDim.x) * blockIdx.x + 1) &&
+             (ycoord >= blockDim.y * blockIdx.y && ycoord < (blockDim.y) * blockIdx.y + 1) &&
+             (zcoord >= blockDim.z * blockIdx.z && zcoord < (blockDim.z) * blockIdx.z + 1)) {
+            sum += shMem[(xcoord % blockDim.x) * blockDim.y * blockDim.z + (ycoord % blockDim.y) * 
+                          blockDim.z + (zcoord % blockDim.z)];
           } else {
             sum += d_in[xcoord * stepX + ycoord * zsize + zcoord];
           }
@@ -226,6 +227,7 @@ void print3DArray(char* arr, unsigned const int x, unsigned const int y, unsigne
 void randomizeGrid(char* grid, unsigned const int size, unsigned const int chance) {
  
   srand(time(NULL));
+ 
   int i;
   for(i = 0; i < size; i++) {
     grid[i] = (char)((rand() % 100 <= chance) ? 1 : 0);
@@ -334,10 +336,8 @@ void runLife(const unsigned int iterations, unsigned int xsize, const unsigned i
   // Initialize the output file if enabled
   if(writeOut) {
     initGameFile(iterations, xsize, ysize, zsize);
+    writeGameStep(h_in, xsize, ysize, zsize);
   }
-  
-  // Number of neighbors
-  char *h_nei = (char *) malloc(arrMem);
   
   // Pointers for GPU game data
   char *d_in;
@@ -362,10 +362,10 @@ void runLife(const unsigned int iterations, unsigned int xsize, const unsigned i
     
     // Run the kernel to simulate an iteration of 3D life
     clock_t start = clock();
-    lifeItrKernel<<<gridDim, blockDim, arrMem>>>(d_in, d_out, xsize, ysize, zsize, alow, ahigh);
+    lifeItrKernel<<<gridDim, blockDim, (tx * ty * tz * sizeof(char))>>>(d_in, d_out, xsize, ysize, zsize, alow, ahigh);
     cudaError_t cerr = cudaDeviceSynchronize();
     if(cerr != cudaSuccess) {
-      printf("Kernel sumNeighbors failed with error \"%s\".\n", cudaGetErrorString(cerr));
+      printf("Kernel lifeItr failed with error \"%s\".\n", cudaGetErrorString(cerr));
     }
     clock_t end = clock();
     
@@ -373,13 +373,14 @@ void runLife(const unsigned int iterations, unsigned int xsize, const unsigned i
     cudaMemcpy(d_in, d_out, arrMem, cudaMemcpyDeviceToDevice);
     
     printf("took %d ticks.\n", (end - start));
+    
+    // Print and write out if enabled
     if(printArr || writeOut) {
       cudaMemcpy(h_in, d_out, arrMem, cudaMemcpyDeviceToHost);
       if(printArr) {
         print3DArray(h_in, xsize, ysize, zsize);
       }
       if(writeOut) {
-        printf("  Writing iteration to file...\n");
         writeGameStep(h_in, xsize, ysize, zsize);
       }
     }

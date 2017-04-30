@@ -28,6 +28,7 @@ import static org.lwjgl.glfw.GLFW.glfwWindowShouldClose;
 import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
+import static org.lwjgl.opengl.GL11.GL_CULL_FACE;
 import static org.lwjgl.opengl.GL11.GL_FALSE;
 import static org.lwjgl.opengl.GL11.GL_QUADS;
 import static org.lwjgl.opengl.GL11.GL_TRUE;
@@ -38,6 +39,7 @@ import static org.lwjgl.opengl.GL11.glColor3f;
 import static org.lwjgl.opengl.GL11.glEnable;
 import static org.lwjgl.opengl.GL11.glEnd;
 import static org.lwjgl.opengl.GL11.glRotatef;
+import static org.lwjgl.opengl.GL11.glTranslatef;
 import static org.lwjgl.opengl.GL11.glVertex3f;
 import static org.lwjgl.opengl.GL11.glViewport;
 import static org.lwjgl.system.MemoryUtil.NULL;
@@ -56,10 +58,10 @@ import org.lwjgl.opengl.GL;
 public class Game implements Runnable {
   
   /** The width of the render window. */
-  private static final int WINDOW_WIDTH = 640;
+  private static final int WINDOW_WIDTH = 800;
   
   /** The height of the render window. */
-  private static final int WINDOW_HEIGHT = 640;
+  private static final int WINDOW_HEIGHT = 800;
   
   /** Padding for cube rendering. */
   private static final float AREA_PADDING = 0.75f;
@@ -103,7 +105,7 @@ public class Game implements Runnable {
     // Calculate vertex lengths for all axes
     vertexLengthX = ((float) width / this.gameData[0].length / (float) width) / AREA_PADDING;
     vertexLengthY = ((float) height / this.gameData[0][0].length / (float) height) / AREA_PADDING;
-    vertexLengthZ = ((float) WINDOW_HEIGHT / this.gameData[0][0][0].length / (float) WINDOW_HEIGHT) / AREA_PADDING;
+    vertexLengthZ = ((float) 800 / this.gameData[0][0][0].length / 800f) / AREA_PADDING;
     
     System.out.println(vertexLengthX + " " + vertexLengthY + " " + vertexLengthZ);
   }
@@ -195,14 +197,12 @@ public class Game implements Runnable {
   private void loop() {
     GL.createCapabilities();
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
     
     glClearColor(0.2f, 0.2f, 0.2f, 0.2f);
+    glTranslatef(0, 0, 0.2f);
     
     // Run until the user closes the window
-    
-    float rotAmt = 0.4f;
-    boolean rotPos = true;
-    
     while (!glfwWindowShouldClose(window)) {
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -213,16 +213,7 @@ public class Game implements Runnable {
       // Do cube rotation
       glRotatef(0.37f, 1.0f, 0.0f, 0.0f);
       glRotatef(0.17f, 0.0f, 1.0f, 0.0f);
-      glRotatef(0.23f * rotAmt, 0.0f, 0.0f, 1.0f);
-      
-      // Add rotation variance
-      if(rotPos) {
-        rotAmt += 0.004f;
-      } else {
-        rotAmt -= 0.004f;
-      }
-      if(rotAmt > 3.0f) rotPos = false;
-      else if(rotAmt < -3.0f) rotPos = true;
+      glRotatef(0.23f, 0.0f, 0.0f, 1.0f);
       
       glfwSwapBuffers(window);
       glfwPollEvents();
@@ -239,7 +230,7 @@ public class Game implements Runnable {
     final byte[][][] golData = gameData[itrNumber];
     
     // Calculate the position to start drawing cubes
-    final float startPos = -1.0f * AREA_PADDING;
+    final float startPos = -0.9f * AREA_PADDING;
     
     // X-coordinates
     for (int i = 0; i < golData.length; i++) {
@@ -265,43 +256,43 @@ public class Game implements Runnable {
             final float zPos = startPos + vertexLengthZ * k;
             final float zEnd = zPos + vertexLengthZ;
             
-            // Side A of the cube (green)
-            glColor3f(0, 1, 0);
+            // Side A of the cube
+            glColor3f(1.0f, 0.86f, 1.0f);
             glVertex3f(xEnd, yEnd, zPos);
             glVertex3f(xPos, yEnd, zPos);
             glVertex3f(xPos, yEnd, zEnd);
             glVertex3f(xEnd, yEnd, zEnd);
             
-            // Side B (orange)
-            glColor3f(1, 0.5f, 0);
+            // Side B
+            glColor3f(0.9f, 0.78f, 1.0f);
             glVertex3f(xEnd, yPos, zEnd);
             glVertex3f(xPos, yPos, zEnd);
             glVertex3f(xPos, yPos, zPos);
             glVertex3f(xEnd, yPos, zPos);
             
-            // Side C (red)
-            glColor3f(1, 0, 0);
+            // Side C
+            glColor3f(0.8f, 0.7f, 1.0f);
             glVertex3f(xEnd, yEnd, zEnd);
             glVertex3f(xPos, yEnd, zEnd);
             glVertex3f(xPos, yPos, zEnd);
             glVertex3f(xEnd, yPos, zEnd);
             
-            // Side D (yellow)
-            glColor3f(1, 1, 0);
+            // Side D
+            glColor3f(0.7f, 0.64f, 1.0f);
             glVertex3f(xEnd, yPos, zPos);
             glVertex3f(xPos, yPos, zPos);
             glVertex3f(xPos, yEnd, zPos);
             glVertex3f(xEnd, yEnd, zPos);
             
-            // Side E (blue)
-            glColor3f(0, 0, 1);
+            // Side E
+            glColor3f(0.6f, 0.56f, 1.0f);
             glVertex3f(xPos, yEnd, zEnd);
             glVertex3f(xPos, yEnd, zPos);
             glVertex3f(xPos, yPos, zPos);
             glVertex3f(xPos, yPos, zEnd);
             
-            // Side F (magenta)
-            glColor3f(1, 0, 1);
+            // Side F
+            glColor3f(0.5f, 0.48f, 1.0f);
             glVertex3f(xEnd, yEnd, zPos);
             glVertex3f(xEnd, yEnd, zEnd);
             glVertex3f(xEnd, yPos, zEnd);

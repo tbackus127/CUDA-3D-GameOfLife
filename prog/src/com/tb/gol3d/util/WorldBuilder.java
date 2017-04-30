@@ -1,4 +1,4 @@
-  
+
 package com.tb.gol3d.util;
 
 import java.io.File;
