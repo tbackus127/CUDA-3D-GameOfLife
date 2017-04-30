@@ -236,9 +236,9 @@ char sumNeighbors(char*** arr, const unsigned int cx, const unsigned int cy, con
 // ------------------------------------------------------------------------------------------------
 // Runs the Game of Life.
 // ------------------------------------------------------------------------------------------------
-void runLife(const unsigned int iterations, const unsigned int xsize, const unsigned int ysize, 
+void runLife(const unsigned int iterations, unsigned int xsize, const unsigned int ysize, 
              const unsigned int zsize, const unsigned int initc, const unsigned int alow,
-             const unsigned int ahigh) {
+             const unsigned int ahigh, const unsigned int printArr, const unsigned int writeOut) {
   
   printf("Creating initial game state... ");
   char ***grid = createGrid(xsize, ysize, zsize);
@@ -249,12 +249,20 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
   }
   
   randomizeGrid(grid, xsize, ysize, zsize, initc);
-  // printf("Initial grid:\n");
-  // print3DArray(grid, xsize, ysize, zsize);
-  
   printf("DONE\n");
-  // initGameFile(iterations, xsize, ysize, zsize);
   
+  // Print initial array if enabled
+  if(printArr) {
+    printf("Initial grid:\n");
+    print3DArray(grid, xsize, ysize, zsize);
+  }
+  
+  // Initialize output file if enabled
+  if(writeOut) {
+    initGameFile(iterations, xsize, ysize, zsize);    
+  }
+  
+  // Run life
   int itrNum;
   for(itrNum = 0; itrNum < iterations; ++itrNum) {
     printf("Iteration %d ", itrNum);
@@ -262,7 +270,6 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
     clock_t start = clock();
     
     char ***tempGrid = createGrid(xsize, ysize, zsize);
-    // printf("  Created temporary grid\n");
     
     int i;
     for(i = 0; i < xsize; i++) {
@@ -272,9 +279,7 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
         
         int k;
         for(k = 0; k < zsize; k++) {
-          // printf("    Getting neighbors of (%d,%d,%d): ", i, j, k);
           const unsigned int numNeighbors = sumNeighbors(grid, i, j, k, xsize, ysize, zsize);
-          // printf("%d\n", numNeighbors);
           if (numNeighbors < alow || numNeighbors > ahigh) {
             tempGrid[i][j][k] = 0;
           } else if (numNeighbors >= alow && numNeighbors <= ahigh) {
@@ -285,22 +290,19 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
     }
     
     clock_t end = clock();
-    
     printf(" took %d ticks.\n", (end - start));
-    
-    // DEBUG
-    // printf("\nTemp array:\n");
-    // print3DArray(tempGrid, xsize, ysize, zsize);
     
     // Once calculations have been completed, copy the temp grid to the current and destroy it
     copy3DArray(tempGrid, grid, xsize, ysize, zsize);
     free3DArray(tempGrid, xsize, ysize);
     
-    // printf("\nCopied array:\n");
-    // print3DArray(grid, xsize, ysize, zsize);
-    // WARNING: The file can get pretty big for large game areas (260MB for 1000itr 64x64x64).
-    // I will try to find a way to compact it later, but it is low priority as of now.
-    // writeGameStep(grid, xsize, ysize, zsize);
+    if(printArr) {
+      print3DArray(grid, xsize, ysize, zsize);
+    }
+    
+    if(writeOut) {
+      writeGameStep(grid, xsize, ysize, zsize);
+    }
   }
   
   free3DArray(grid, xsize, ysize);
@@ -310,8 +312,10 @@ void runLife(const unsigned int iterations, const unsigned int xsize, const unsi
 // Prints the usage message if a bad number of runtime arguments are passed.
 // ------------------------------------------------------------------------------------------------
 void printUsage() {
-  printf("Usage: <program> MAX_ITERATIONS, SIZE_X, SIZE_Y, SIZE_Z,\nINITIAL_ALIVE_CHANCE, ");
-  printf("  ALIVE_THRESHOLD_LOW (inclusive), ALIVE_THRESHOLD_HIGH (inclusive)");
+  printf("Arguments (separated by spaces):\n");
+  printf("  MAX_ITERATIONS\n  SIZE_X\n  SIZE_Y\n  SIZE_Z\n  INITIAL_ALIVE_CHANCE (1-100)\n");
+  printf("  ALIVE_THRESHOLD_LOW (inclusive)\n  ALIVE_THRESHOLD_HIGH (inclusive)\n");
+  printf("  PRINT_ARRAY? (0=no, 1=yes)\n  WRITE_TO_FILE? (0=no, 1=yes)\n");
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -320,7 +324,7 @@ void printUsage() {
 int main(int argc, char *argv[]) {
   
   // Ensure proper runtime argument count
-  if(argc <= 1 || argc > 8) {
+  if(argc != 10) {
     printUsage();
     return EXIT_SUCCESS;
   }
@@ -346,10 +350,21 @@ int main(int argc, char *argv[]) {
   // Parse alive high threshold (inclusive)
   unsigned const int aliveHigh = atoi(argv[7]);
   
+  // Parse whether or not to print the array
+  unsigned const int printArray = atoi(argv[8]);
   
-  printf("Starting %d iteration Game of Life with sizes x=%d, y=%d, z=%d\n", iterations,
+  // Parse whether or not to output to disk
+  unsigned const int writeOut = atoi(argv[9]);
+  
+  // Print game information to the console
+  printf("Starting %d iteration Game of Life (Serial) with sizes x=%d, y=%d, z=%d\n", iterations,
          sizeX, sizeY, sizeZ);
-  runLife(iterations, sizeX, sizeY, sizeZ, initChance, aliveLow, aliveHigh);
+  printf("  initial alive chance=%d, neighbors for alive=%d to %d\n", initChance, 
+         aliveLow, aliveHigh);
+  if(writeOut) {
+    printf("  File output enabled.\n");
+  }
+  runLife(iterations, sizeX, sizeY, sizeZ, initChance, aliveLow, aliveHigh, printArray, writeOut);
   
   return EXIT_SUCCESS;
 }
